@@ -1,0 +1,448 @@
+import multiprocessing
+import socket
+import time
+from random import seed, uniform, random
+import sys
+import math
+import struct
+
+UDP_PORT = 5005
+# Initialize global variables. Will be overwritten by arguments
+r = 90
+num = 0       # Number of nodes in network
+area_x = 0    # Width of area
+area_y = 0    # Height of area
+k = 0
+
+# Detection Sensors
+detect_list = ['PIR','Vibration','Distance']
+# Classifiying Sensors
+class_list = ['Camera','Microphone','RFID','Xbee']
+
+# Energy Model Parameters
+E_fs = 10**-10 #pJ/bit/m^2
+E_mp = 0.0013*10**-12 #pJ/bit/m^4
+E_elec = 50*10**-9 #nJ/bit
+d_thresh = 87.7058 #m
+######################################
+# Node Class
+######################################
+
+class Node(multiprocessing.Process):
+
+  def __init__(self, node_info, neighbor_info):
+    # Set up various characteristics about the node
+    multiprocessing.Process.__init__(self)
+    self.pos = node_info[0]
+    self.ip = node_info[1]
+    self.type = node_info[2]
+    self.neighbors = neighbor_info
+    # Give the node a random amount of energy between 1.9 and 2.1 J
+    #self.energy = 0.01 + random()*.0001
+    self.energy = .1 + random()*.0001
+    # Contains list of neighbor nodes, energy, and connections
+    self.ninfo = dict()
+    self.n2info = dict()
+    
+    # States. Init = 0, Sleep = 1, Awake = 2, Dead = -1
+    # Self.stage. 0 = Transmit first message. 1 = Receive other messages. 2 = Transmit neighbor info. 3 = Receive neighbor info
+    self.state = 0
+    self.stage = 0
+    self.timestamp = 0
+    
+    print self.name,'Type:',self.type,"X:",self.pos[0],"Y:", self.pos[1],"E:", self.energy
+
+  def calc_energy(self,mode,load):
+    if(mode=="transmit"):
+      # Multipath fading
+      if(r > d_thresh):
+        return E_mp*load*(r**4) + E_elec*load
+      # Shadow fading
+      else:
+        return E_fs*load*(r**2) + E_elec*load
+    elif(mode=="receive"):
+      return E_elec*load
+
+  def run(self):
+    self.setup()
+    
+    # Receive packets from controller socket
+    while(True):
+      data, address = self.contr_sock.recvfrom(1024)
+      if(data == "step"):
+        # Step through current time period
+        message = self.step()
+        # Send message
+        try:
+          self.contr_sock.sendto(message, address)
+        except:
+          print "Unexpected error:", sys.exc_info()[0]
+          raise
+      elif(data == "quit"):
+        break
+
+    # Close all sockets
+    self.ownsock.close()
+    for sock in self.neighbor_socks:
+      sock.close()
+    self.contr_sock.close()
+
+  def step(self):
+    # Simulate each epoch
+    sock_msg = 'Continue'
+
+    # Initial or Awake
+    if self.state != -1:
+      if self.stage == 0:
+        # Record energy at the start of the epoch
+        self.beg_ene = self.energy
+        message = str(self.timestamp)+' '+self.name+' '+self.type+' '+str(self.beg_ene)
+        # Transmit message
+        self.transmit(message)
+        # Receive information
+        data,length = self.receive()
+        # Store neighbor info in self.ninfo
+        if data != None:
+          self.store_info(data,'n')
+        else:
+          print 'Warning: Did not receive message packets'
+
+      elif self.stage == 1:
+        message = str(self.timestamp)+' '+self.name+'|'
+        for node in self.ninfo:
+          info = self.ninfo[node]
+          message += node+' '+info[0]+' '+info[1]+'|'
+        message = message.rstrip('|')
+        # Transmit second message
+        self.transmit(message)
+        # Receive neighbor neighbor info
+        data,length = self.receive()
+        if data != None:
+          self.store_info(data,'n2')
+
+      elif self.stage == 2:
+        '''
+        data,length = self.receive()
+        if data != None:
+          self.store_info(data,'n2')
+        '''
+        self.state = self.sleep_scheduler()
+        # Clear self.ninfo and self.n2info
+        self.ninfo = dict()
+        self.n2info = dict()
+        # Simulate as if active drains more energy than sleep
+        if self.state == 2:
+          self.energy -= 0.01*random()	
+        sock_msg = str(self.timestamp)+' '+self.name+' '+str(self.state)+' '+str(self.pos[0])+" "+str(self.pos[1])+" "+str(self.beg_ene)
+    # Dead
+    elif self.state == -1:
+      if self.stage == 2:
+        sock_msg = str(self.timestamp)+' '+self.name+' '+str(self.state)+' '+str(self.pos[0])+" "+str(self.pos[1])+" "+str(self.energy)
+   
+    # Close and open sockets to remove any buffered messages
+    # Check for any values left in buffer
+    if self.state != 1 and self.state != -1:
+      data, length = self.receive()
+      if data != None:
+        print '*************DEBUG4*************'
+        print self.name, 'Received extra data at the end of simulation'
+        sys.exit()
+    
+    # Increment stage
+    if self.stage < 2:
+      self.stage += 1
+    else:
+      self.stage = 0
+
+    # Check if simulation is simulating end of epoch
+    if sock_msg != 'Continue':
+      self.timestamp += 1
+      if self.energy <= 0:
+        self.state = -1
+
+    return sock_msg
+
+  def sleep_scheduler(self):
+    # Sleep scheduling algorithm
+    # Check if Nu < k and Nv < k
+    '''
+    if self.name == 'Node-6':
+      print self.name, 'Neighbor Info', self.ninfo
+      print self.name, 'N Neighbor Info', self.n2info
+    '''
+    cond_nbr = True
+    for node in self.n2info:
+      val = len(self.n2info[node])
+      # One of the neighbor nodes has more neighbors than k
+      if val >= k:
+        cond_nbr = False
+        break
+    
+    if len(self.ninfo) < k or cond_nbr:
+      print self.name, 'has Nu >= k and Nv >= k'
+      return 2
+   
+    else:
+      #Calculate Eu
+      Eu = dict()
+      try:
+        for node in self.ninfo:
+          # If it has a higher energy rank, add it to Eu
+          if float(self.ninfo[node][1]) >= self.beg_ene:
+            Eu[node] = self.ninfo[node]
+            '''
+            if self.name == 'Node-6':
+              print node, self.ninfo[node][1]
+              print self.name, self.beg_ene
+          elif self.name == 'Node-6':
+            print node, self.ninfo[node][1]
+            print self.name, self.beg_ene
+            '''
+      except ValueError:
+        print '*************DEBUG2*************'
+        print self.name, self.ninfo, node
+        sys.exit()
+      '''
+      if self.name == 'Node-6':
+        print self.name, 'Length', len(Eu)
+        print self.name, 'Eu', Eu
+      '''
+      # If there are less than 2 nodes that have a higher energy rank
+      if len(Eu) <= 1:
+        print self.name, 'has less than two neighbors with higher energy rank'
+        return 2
+      
+      # Check for Condition 1: Any two nodes in Eu are connected directly or indirectly through nodes which is in the su's 2-hop neighborhood
+      # that have Erank larger than Eranku
+
+      # Calculate 2-hop neighbors
+      two_hop = []      
+      for node in self.n2info:
+        for val in self.n2info[node]:
+          if val[0] != self.name and not (val[0] in self.ninfo):
+            if val[2] > self.beg_ene:
+              two_hop.append(val[0])
+      # Get only unique values
+      two_hop = set(two_hop)
+      two_hop = list(two_hop)
+      #if self.name == 'Node-6':
+        #print self.name, 'Two-Hop', two_hop
+
+      # See if any two nodes in Eu are connected directly or indirectly
+      keys = Eu.keys()
+      for i in range(len(keys)):
+        # Create a list of neighbors
+        nbr = []
+        for node_info in self.n2info[keys[i]]:
+          nbr.append(node_info[0])
+        #if self.name == 'Node-6':
+          #print self.name, 'Nbr', nbr
+        # Look for direct connection between node i and node j by looking for a match between node i's neighbors and node j
+        for j in range(i+1,len(keys)):
+          # If there is no direct connection, look for indirect connection through two-hop and Eu
+          #if self.name == 'Node-6':
+            #print self.name, 'Key[i]', keys[i]
+            #print self.name, 'Key[j]', keys[j]
+          if keys[j] not in nbr:
+            nbr2 = []
+            for node_info in self.n2info[keys[j]]:
+              nbr2.append(node_info[0])
+            match = [m for m in nbr if m in nbr2]
+            match_twohop = [m for m in match if m in two_hop]
+            match_Eu = [m for m in match if m in Eu]
+            #if self.name == 'Node-6':
+              #print self.name, 'match', match
+              #print self.name, 'match_twohop', match_twohop
+              #print self.name, 'match_Eu', match_Eu
+            # If no match is found, return 2
+            if len(match_twohop+match_Eu) == 0:
+              return 2             
+
+      # Check for Condition 2: Any node in Nu has at least k neighbors from Eu
+      for node in self.n2info:
+        conn = 0
+        for val in self.n2info[node]:
+          # Check if node is in Eu
+          if val[0] in Eu:
+            conn += 1
+        # If any node does not have at least k neighbors from Eu, it stays awake
+        if conn < k:
+          return 2
+      # If it gets here, that means it passes both conditions
+      return 1
+          
+  def store_info(self,data,store):
+    if store == 'n':
+      for val in data:
+        val_list = val.split(' ')
+        self.ninfo[val_list[1]] = val_list[2:len(val_list)] 
+    elif store == 'n2':
+      for val in data:
+        try:
+          val_list = val.split('|')
+          node = val_list[0].split(' ')[1]
+          self.n2info[node] = []
+          for i in range(1,len(val_list)):
+            self.n2info[node].append(val_list[i].split(' '))
+        except AttributeError:
+          print '*************DEBUG1*************'
+          print self.name, data, val
+          sys.exit()
+
+  def setup(self):
+    # Setup Neighbor Subscriber sockets
+    self.neighbor_socks = []
+    host = socket.gethostname()
+
+    for multicast_group in self.neighbors:
+      # Create the socket
+      sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      # Bind to the server address
+      sock.bind((multicast_group, UDP_PORT))
+      sock.settimeout(.05)
+      group = socket.inet_aton(multicast_group)
+      mreq = struct.pack('4sL', group, socket.INADDR_ANY) 
+      sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+      self.neighbor_socks.append(sock)
+
+    # Setup Publisher Socket
+    self.ownsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    self.ownsock.settimeout(.05)
+    multicast_group = (self.ip, UDP_PORT)
+    # Set the time-to-live for messages to 1 so they do not go past the local network segment.
+    ttl = struct.pack('b', 1)
+    self.ownsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+
+    # Setup Controller Socket
+    self.contr_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    self.contr_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    self.contr_sock.bind(('224.0.0.1',UDP_PORT))
+    group = socket.inet_aton('224.0.0.1')
+    mreq = struct.pack('4sL', group, socket.INADDR_ANY) 
+    self.contr_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+  def transmit(self,message):
+    # Transmit message
+    #print >>sys.stderr, self.name,'sending "%s"' % message
+    sent = self.ownsock.sendto(message, (self.ip,UDP_PORT))
+    self.energy -= self.calc_energy('transmit',len(message)*8)
+
+  def receive(self):
+    # Read from each neighbor for a response
+    data_list = []
+    length = 0
+    for sock in self.neighbor_socks: 
+      while(True):
+        try:
+          data, address = sock.recvfrom(1024)
+          # Check if data has the same timestamp
+          if int(data.split(' ')[0]) == self.timestamp:
+            length += len(data)*8
+            self.energy -= self.calc_energy("receive",len(data)*8)
+            data_list.append(data)
+          else:
+            print '*************DEBUG3*************'
+            print self.name, 'Timestamp', self.timestamp
+            print self.name, 'Message Timestamp', data.split(' ')[0]
+            sys.exit()
+        except socket.timeout:
+          break
+     
+    if (len(data_list) != 0):
+      #print self.name,"Data_received",data_list
+      self.energy -= self.calc_energy('receive',length)
+      return data_list,length
+    else:
+      return None, None
+
+  def socket_sleep(self):
+    for sock in self.neighbor_socks:
+      sock.close()   
+
+  def socket_wake(self):
+    self.neighbor_socks = []
+    host = socket.gethostname()
+
+    for multicast_group in self.neighbors:
+      # Create the socket
+      sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      # Bind to the server address
+      sock.bind((multicast_group, UDP_PORT))
+      sock.settimeout(.05)
+      group = socket.inet_aton(multicast_group)
+      mreq = struct.pack('4sL', group, socket.INADDR_ANY) 
+      sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+      self.neighbor_socks.append(sock)
+
+
+
+######################################
+# Main
+######################################
+
+def route_setup(nodes):
+  # Create empty list
+  edge_list = []
+  #energy_cost = [0]*5
+  for i in range(len(nodes)):
+    edge_list.append([])
+    
+  # For now, setup up routes if they are within range of each other
+  for i in range(len(nodes)):
+    p0 = nodes[i][0]
+    for j in range(i+1,len(nodes)):
+      p1 = nodes[j][0]
+      dist = math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
+      if(dist <= r):
+        #print 'Node',i+1,' Node',j+1
+        #print p0, p1, dist
+        # If distance between two nodes is less than communication range, then connect
+        edge_list[i].append(nodes[j][1])
+        edge_list[j].append(nodes[i][1])
+  return edge_list 
+
+if __name__ == '__main__':
+  node_info = [] # Contain information about each node. Position, IP Address, Own Connection
+  network = [] # Used to start and join processes
+  # Debug
+  #seed(4)
+  try:
+    num, area_x, area_y, k = map(int,sys.argv[1:5])
+  except IndexError:
+    print 'Arguments should be num, area_x, area_y, k'
+    sys.exit()
+
+  if (num >= 255 or num <=0):
+    print 'Number of nodes exceeds range: 1-254'
+    sys.exit()
+  # Get entire list of types of sensors
+  type_list = detect_list + class_list
+
+  ip_part = 1
+  
+  for i in range(num):
+    pos = [uniform(0,area_x),uniform(0,area_y)]
+    ip = '239.0.0.' + str(ip_part)
+    ctype = type_list[ip_part%len(type_list)]
+    node_info.append([pos,ip,ctype])
+    ip_part += 1 
+ 
+  # Setup up Routes and Calculate Broadcast energy
+  edge_list = route_setup(node_info)
+  
+  # Print out edge_list
+  for node in edge_list:
+    print node  
+
+  # Start up all nodes
+  for i in range(num):
+    n = Node(node_info[i], edge_list[i])
+    network.append(n)
+    n.start()
+
+  for i in range(num):
+    network[i].join()
+  
+        
