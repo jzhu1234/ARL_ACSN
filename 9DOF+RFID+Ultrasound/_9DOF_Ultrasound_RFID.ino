@@ -49,14 +49,14 @@ const unsigned int twosec = 34286;
 const unsigned int foursec = 3036;
 volatile unsigned int delay_period=0;
 
-bool stay_awake = false;
+bool magnet_awake = false;
+bool RFID_awake = false;
 
 ISR(TIMER1_OVF_vect)
 {
   TCNT1 = twosec;
-  if (stay_awake == true){
-    stay_awake = false;
-  }
+  RFID_awake = false;
+  magnet_awake = false;
   /* set the flag. */
   if(f_timer == 0)
   {
@@ -144,20 +144,22 @@ void setup() {
   TIMSK1=0x01;
 }
 void magnet_sense(){
-  sensors_event_t accel, mag, gyro, temp;
-  lsm.getEvent(&accel, &mag, &gyro, &temp); 
-
-  // print out magnetometer data
-  float sum = abs(mag.magnetic.x) + abs(mag.magnetic.y) + abs(mag.magnetic.z);
-
-  if (sum > 1.5){
-    byte msg[] = {1, 2, 1};
-    Serial.write(msg,3);
-    stay_awake = false;
+  if (magnet_awake){
+    sensors_event_t accel, mag, gyro, temp;
+    lsm.getEvent(&accel, &mag, &gyro, &temp); 
+  
+    // print out magnetometer data
+    float sum = abs(mag.magnetic.x) + abs(mag.magnetic.y) + abs(mag.magnetic.z);
+  
+    if (sum > 1.5){
+      byte msg[] = {1, 2, 1};
+      Serial.write(msg,3);
+      magnet_awake = false;
+    }
   }
 }
 
-void ultrasound_sense(){
+bool ultrasound_sense(){
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   // Sets the trigPin on HIGH state for 10 microseconds
@@ -170,29 +172,34 @@ void ultrasound_sense(){
   if (duration < threshold){
     byte msg[] = {1, 6, 1};
     Serial.write(msg,3);
+    return true;
   }
+  return false;
 }
 
 void RFID_sense(){
-  uint8_t success;
-  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
-  uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-   
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
-  
-  if (success) {
-    if (uidLength == 4) {
-      uint8_t keya[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-      success = nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 4, 0, keya);    
-      if (success) {
-        uint8_t data[16];
-        success = nfc.mifareclassic_ReadDataBlock(4, data);
+  if (RFID_awake){
+    uint8_t success;
+    uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+    uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+     
+    success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+    
+    if (success) {
+      if (uidLength == 4) {
+        uint8_t keya[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+        success = nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 4, 0, keya);    
         if (success) {
-          byte bytelow = 1;
-          byte bytemid = 1;
-          byte bytehigh = 1;
-          byte msg[] = {bytehigh, bytemid, bytelow};
-          Serial.write(msg, 3);
+          uint8_t data[16];
+          success = nfc.mifareclassic_ReadDataBlock(4, data);
+          if (success) {
+            byte bytelow = 1;
+            byte bytemid = 1;
+            byte bytehigh = 1;
+            byte msg[] = {bytehigh, bytemid, bytelow};
+            RFID_awake = false;
+            Serial.write(msg, 3);
+          }
         }
       }
     }
@@ -203,30 +210,28 @@ void loop() {
   if(f_timer==1){
     f_timer = 0;
     
-    ultrasound_sense();
-    RFID_sense();
-    //
-    while (Serial.available() >= 3){
+    bool sensed = ultrasound_sense();
+  
+    while (Serial.available() >= 3 || sensed){
       // read the incoming byte:
       byte Bytehigh = Serial.read();
       byte Bytemid = Serial.read();
       byte Bytelow = Serial.read();
 
-      if (Bytemid >= 5){
+      if (Bytemid >= 5 || sensed){
+        sensed = false;
         // Message is from detector node
         //Turn off interrupt temporarily
         TIMSK1=0x00;
         TCNT1=foursec;
         // Change interrupt
-        stay_awake = true;
-        TIMSK1=0x01;
-        long now = millis();
-        
-        while(stay_awake){
+        magnet_awake = true;
+        RFID_awake = true;
+        TIMSK1=0x01;        
+        while(magnet_awake||RFID_awake){
           magnet_sense();
-          
+          RFID_sense();
         }
-        long now2 = millis();
       }
     }
     enterSleep();
