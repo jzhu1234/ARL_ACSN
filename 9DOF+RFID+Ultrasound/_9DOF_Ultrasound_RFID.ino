@@ -58,7 +58,7 @@ ISR(TIMER1_OVF_vect)
     stay_awake = false;
   }
   /* set the flag. */
-  else if(f_timer == 0)
+  if(f_timer == 0)
   {
     f_timer = 1;
   }
