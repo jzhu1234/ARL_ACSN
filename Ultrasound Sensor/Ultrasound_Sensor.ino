@@ -17,6 +17,7 @@ ISR(TIMER1_OVF_vect)
 {
    TCNT1 = 31250;
   /* set the flag. */
+  digitalWrite(ledPin, LOW);
    if(f_timer == 0)
    {
      f_timer = 1;
@@ -50,6 +51,9 @@ void enterSleep(void)
 }
 
 void setup() {
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
+   
   pinMode(ledPin, OUTPUT);
   pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
   pinMode(echoPin, INPUT); // Sets the echoPin as an Input
@@ -96,9 +100,6 @@ void loop() {
       byte msg[] = {5, 6, 1};
       Serial.write(msg,3);
     }
-    else{
-      digitalWrite(ledPin, LOW);
-    }    
     enterSleep();
   }  
 }
