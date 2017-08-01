@@ -1,0 +1,82 @@
+---
+title: "EC-CKN_Viz"
+author: "John Zhu"
+date: "August 1, 2017"
+output: html_document
+---
+
+```{r}
+library(manipulate)
+library(ggplot2)
+library(RColorBrewer)
+
+# Set up Graph
+area_x <- 50
+area_y <- 50
+
+# Read in text file
+df <- read.table('~/Documents/python_code/log_ECCKN.txt')
+colnames(df) <- c('Time','Node','State','PosX','PosY','Energy','Detect','Type')
+
+t <- as.list(levels(as.factor(df$Time)))
+
+# Alter State vector, and Add colour vector
+df$Color = df$State
+df$Color[df$Color==-1] = 'red' 
+df$State[df$State==-1] = 'Dead'
+df$Color[df$Color==0] = 'orange' 
+df$State[df$State==0] = 'Initial'
+df$Color[df$Color==1] = 'blue' 
+df$State[df$State==1] = 'Sleep'
+df$Color[df$Color==2] = 'green' 
+df$State[df$State==2] = 'Awake'
+df$Color[df$Color==3] = 'purple' 
+df$State[df$State==3] = 'Event'
+df$Color[df$Node=='Basestation'] = 'black'
+df$State <- as.factor(df$State)
+
+# Add Detect Circles
+df$Detect <- as.numeric(df$Detect)
+df$Detect[df$Detect==2] = 6
+
+df$Type <- as.character(df$Type)
+df$Type[df$Type=='Event'] <- 16
+df$Type[df$Type=='PIR'] <- 16
+df$Type[df$Type=='Vibration'] <- 16
+df$Type[df$Type=='Ultrasound'] <- 16
+df$Type[df$Type=='Camera'] <- 15
+df$Type[df$Type=='Microphone'] <- 18
+df$Type[df$Type=='RFID'] <- 8
+df$Type[df$Type=='Magnetomer'] <- 25
+df$Type <- as.numeric(df$Type)
+```
+
+```{r}
+manipulate( 
+  ggplot(df[which(iTime==df$Time),], aes(PosX, PosY)) +
+    geom_text(aes(label=Node),hjust=1,vjust=-1) +
+    #geom_text(aes(label=Energy),hjust=1,vjust=-1) +
+    geom_point(colour='purple',size = df[df$Time==iTime,]$Detect)+
+    geom_point(colour=df[df$Time==iTime,]$Color,fill=df[df$Time==iTime,]$Color,size=3,shape=df[df$Time==iTime,]$Type)+
+    xlim(0,area_x) + ylim(0,area_y),
+  iTime=picker(t)
+)
+```
+
+```{r}
+lifetime <- read.table('~/Documents/python_code/lifetime_ECCKN.txt')
+colnames(lifetime) <- c('Time','Nodes')
+lifetime$Nodes <- lifetime$Nodes/max(lifetime$Nodes)
+ggplot(lifetime,aes(Time,Nodes)) + geom_line()
+```
+
+```{r}
+# Graph how many events were found over time
+event_detect <- read.table('~/Documents/python_code/detect_ECCKN.txt')
+colnames(event_detect) <- c('Time','Events')
+#event_detect$Time <- event_detect$Time - iter_per
+events <- df$Time[df$State=='Event']
+event_detect$Percentage <- apply(event_detect,1,function(x) if(x[2]!=0) x[2]/sum(events<=x[1]) else x[2])
+ggplot(event_detect,aes(Time,Percentage)) + geom_line()
+```
+
