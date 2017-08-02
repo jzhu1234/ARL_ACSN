@@ -116,6 +116,28 @@ void setup(){
 void loop() {
   if(f_timer == 1){
     f_timer = 0;
+    while (Serial.available >= 3) {
+      byte h = Serial.read();
+      byte m = Serial.read();
+      byte l = Serial.read();
+      if (h == 0) {
+        TIMSK1 = 0x00;
+        Serial.print("+++");
+        delay(1000);
+        Serial.print("ATID");
+        Serial.print(m, HEX);
+        Serial.print(l, HEX);
+        Serial.print('/r');
+        delay(1000);
+        Serial.print("ATWR/r");
+        while (Serial.available >= 3) {
+          Serial.read();
+          Serial.read();
+          Serial.read();
+        }
+      }
+    }
+    TIMSK1 = 0x01;
     int proximity = digitalRead(pirPin);
     if(proximity == HIGH){
       digitalWrite(ledPin, HIGH);   //the led visualizes the sensors output pin state
@@ -129,14 +151,6 @@ void loop() {
      }
     else if(proximity == LOW) {
       digitalWrite(ledPin, LOW);  //the led visualizes the sensors output pin state
-      /*
-      byte id = 4;
-      byte data_high = 5;
-      byte data_low = 0;
-      byte packet[] = {id, data_high, data_low};
-      //Serial.println("Sensed Nothing");
-      Serial.write(packet, 3);
-      */
       }
     enterSleep();
   }
