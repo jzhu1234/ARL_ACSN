@@ -233,7 +233,7 @@ void loop() {
       byte Bytehigh = Serial.read();
       byte Bytemid = Serial.read();
       byte Bytelow = Serial.read();
-      if (Bytehigh == 0) {
+      /*if (Bytehigh == 0) {
         TIMSK1 = 0x00; 
         Serial.print("+++");
         delay(1000);
@@ -250,7 +250,7 @@ void loop() {
         }
         TIMSK1 = 0x01;
       } 
-      else if (Bytemid >= 5 || sensed){
+      else */if (Bytemid >= 5 || sensed){
         sensed = false;
         // Message is from detector node
         //Turn off interrupt temporarily
