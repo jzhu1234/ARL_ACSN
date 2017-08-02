@@ -233,8 +233,16 @@ void loop() {
       byte Bytehigh = Serial.read();
       byte Bytemid = Serial.read();
       byte Bytelow = Serial.read();
-
-      if (Bytemid >= 5 || sensed){
+      if (Bytehigh == 0) {
+        Serial.print("+++");
+        delay(1000);
+        Serial.print("ATID");
+        Serial.print(Bytemid, HEX);
+        Serial.print(Bytelow, HEX);
+        Serial.print('/r');
+        delay(1000);
+        Serial.print("ATWR/r");
+      } else if (Bytemid >= 5 || sensed){
         sensed = false;
         // Message is from detector node
         //Turn off interrupt temporarily
