@@ -116,6 +116,7 @@ void setup(){
 void loop() {
   if(f_timer == 1){
     f_timer = 0;
+    /*
     while (Serial.available() >= 3) {
       byte h = Serial.read();
       byte m = Serial.read();
@@ -138,6 +139,7 @@ void loop() {
       }
     }
     TIMSK1 = 0x01;
+    */
     int proximity = digitalRead(pirPin);
     if(proximity == HIGH){
       digitalWrite(ledPin, HIGH);   //the led visualizes the sensors output pin state
