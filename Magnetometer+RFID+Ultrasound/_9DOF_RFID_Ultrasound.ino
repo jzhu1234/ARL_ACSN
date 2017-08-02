@@ -242,6 +242,11 @@ void loop() {
         Serial.print('/r');
         delay(1000);
         Serial.print("ATWR/r");
+        while (Serial.available >= 3) {
+          Serial.read();
+          Serial.read();
+          Serial.read();
+        }
       } else if (Bytemid >= 5 || sensed){
         sensed = false;
         // Message is from detector node
