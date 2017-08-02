@@ -243,7 +243,7 @@ void loop() {
         Serial.print('\r');
         delay(1000);
         Serial.print("ATWR\r");
-        while (Serial.available >= 3) {
+        while (Serial.available() >= 3) {
           Serial.read();
           Serial.read();
           Serial.read();
