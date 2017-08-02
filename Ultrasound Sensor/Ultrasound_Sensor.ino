@@ -83,11 +83,14 @@ void setup() {
 }
 
 void loop() {
-  while (Serial.available >= 3) {
+  if(f_timer==1){
+    f_timer = 0;
+    while (Serial.available >= 3) {
     byte h = Serial.read();
     byte m = Serial.read();
     byte l = Serial.read();
     if (h == 0) {
+      TIMSK1 = 0x00;
       Serial.print("+++");
       delay(1000);
       Serial.print("ATID");
@@ -101,11 +104,9 @@ void loop() {
         Serial.read();
         Serial.read();
       }
-    }
-  }
-  if(f_timer==1)
-  {
-    f_timer = 0;
+    } 
+    TIMSK1=0x01;
+    
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     // Sets the trigPin on HIGH state for 10 microseconds
