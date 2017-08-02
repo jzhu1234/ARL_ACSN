@@ -240,9 +240,9 @@ void loop() {
         Serial.print("ATID");
         Serial.print(Bytemid, HEX);
         Serial.print(Bytelow, HEX);
-        Serial.print('/r');
+        Serial.print('\r');
         delay(1000);
-        Serial.print("ATWR/r");
+        Serial.print("ATWR\r");
         while (Serial.available >= 3) {
           Serial.read();
           Serial.read();
