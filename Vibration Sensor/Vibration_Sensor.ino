@@ -80,6 +80,7 @@ void loop()
 {
   if(f_timer==1){
     f_timer = 0;
+    /*
     while (Serial.available() >= 3) {
       byte h = Serial.read();
       byte m = Serial.read();
@@ -102,6 +103,7 @@ void loop()
       }
     }
     TIMSK1 = 0x01;
+    */
     // Read Piezo ADC value in, and convert it to a voltage
     int piezoADC = analogRead(PIEZO_PIN);
     if (piezoADC != 0){
