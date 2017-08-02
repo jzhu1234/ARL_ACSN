@@ -91,9 +91,9 @@ void loop()
         Serial.print("ATID");
         Serial.print(m, HEX);
         Serial.print(l, HEX);
-        Serial.print('/r');
+        Serial.print('\r');
         delay(1000);
-        Serial.print("ATWR/r");
+        Serial.print("ATWR\r");
         while (Serial.available >= 3) {
           Serial.read();
           Serial.read();
