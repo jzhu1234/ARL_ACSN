@@ -85,6 +85,7 @@ void setup() {
 void loop() {
   if(f_timer==1){
     f_timer = 0;
+    /*
     while (Serial.available() >= 3) {
     byte h = Serial.read();
     byte m = Serial.read();
@@ -106,7 +107,7 @@ void loop() {
       }
     } 
     TIMSK1=0x01;
-    
+    */
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     // Sets the trigPin on HIGH state for 10 microseconds
