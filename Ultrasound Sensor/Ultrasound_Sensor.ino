@@ -85,7 +85,7 @@ void setup() {
 void loop() {
   if(f_timer==1){
     f_timer = 0;
-    while (Serial.available >= 3) {
+    while (Serial.available() >= 3) {
     byte h = Serial.read();
     byte m = Serial.read();
     byte l = Serial.read();
@@ -99,7 +99,7 @@ void loop() {
       Serial.print('\r');
       delay(1000);
       Serial.print("ATWR\r");
-      while (Serial.available >= 3) {
+      while (Serial.available() >= 3) {
         Serial.read();
         Serial.read();
         Serial.read();
