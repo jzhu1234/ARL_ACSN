@@ -27,6 +27,7 @@ ISR(TIMER1_OVF_vect)
 {
    TCNT1 = 31250;
   /* set the flag. */
+  digitalWrite(ledPin, LOW);
    if(f_timer == 0)
    {
      f_timer = 1;
@@ -62,6 +63,7 @@ void enterSleep(void)
 void setup()
 {
   pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
   
   Serial.begin(9600);
   /* Normal timer operation.*/
@@ -107,15 +109,12 @@ void loop()
     // Read Piezo ADC value in, and convert it to a voltage
     int piezoADC = analogRead(PIEZO_PIN);
     if (piezoADC != 0){
+      digitalWrite(ledPin, HIGH);
       byte bytelow = 1;
       byte bytemid = 7;
       byte bytehigh = 3;
       byte msg[] = {bytehigh, bytemid, bytelow}; 
       Serial.write(msg, 3);
-      digitalWrite(ledPin, HIGH);
-    }
-    else {
-      digitalWrite(ledPin, LOW);
     }
     enterSleep();
   }
