@@ -10,12 +10,15 @@ library(manipulate)
 library(ggplot2)
 library(RColorBrewer)
 
+
 # Set up Graph
 area_x <- 50
 area_y <- 50
 
+setwd('')
+
 # Read in text file
-df <- read.table('~/Documents/python_code/log_CKN.txt')
+df <- read.table('log_CKN.txt')
 colnames(df) <- c('Time','Node','State','PosX','PosY','Energy','Detect','Type')
 
 t <- as.list(levels(as.factor(df$Time)))
@@ -52,7 +55,7 @@ df$Type <- as.numeric(df$Type)
 ```
 
 ```{r}
-lifetime <- read.table('~/Documents/python_code/lifetime_CKN.txt')
+lifetime <- read.table('lifetime_CKN.txt')
 colnames(lifetime) <- c('Time','Nodes')
 lifetime$Nodes <- lifetime$Nodes/max(lifetime$Nodes)
 ggplot(lifetime,aes(Time,Nodes)) + geom_line()
@@ -60,7 +63,7 @@ ggplot(lifetime,aes(Time,Nodes)) + geom_line()
 
 ```{r}
 # Graph how many events were found over time
-event_detect <- read.table('~/Documents/python_code/detect_CKN.txt')
+event_detect <- read.table('detect_CKN.txt')
 colnames(event_detect) <- c('Time','Events')
 #event_detect$Time <- event_detect$Time - iter_per
 events <- df$Time[df$State=='Event']

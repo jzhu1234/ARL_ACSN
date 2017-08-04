@@ -7,7 +7,7 @@ def event_gen():
   fe = open('event_CKN.txt','w')
   fl = open('log_CKN.txt','w')
   # Generate events
-  num = random.randrange(40,50,1)
+  num = 200
   events = []
   eventid = 1
   for i in range(num):
@@ -18,7 +18,7 @@ def event_gen():
       # Event.txt
       fe.write(str(time)+' '+str(eventid)+' '+str(pos[0])+' '+str(pos[1])+'\n')  
       # Log.txt
-      fl.write(str(time)+' Event-'+str(eventid)+' 3 '+str(pos[0])+' '+str(pos[1])+' 0 False\n')
+      fl.write(str(time)+' Event-'+str(eventid)+' 3 '+str(pos[0])+' '+str(pos[1])+' 0 False Event\n')
       eventid += 1
   fe.close()
   fl.close()      

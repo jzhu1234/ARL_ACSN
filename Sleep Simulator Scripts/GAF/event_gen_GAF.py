@@ -7,11 +7,11 @@ def event_gen():
   fe = open('event_GAF.txt','w')
   fl = open('log_GAF.txt','w')
   # Generate events
-  num = random.randrange(80,100,1)
+  num = random.randrange(100,150,1)
   events = []
   eventid = 1
   for i in range(num):
-    time = random.random()*40
+    time = random.random()*80
     pos = [random.random()*area_x,random.random()*area_y]
     #pos = [25,25]
     # Event.txt

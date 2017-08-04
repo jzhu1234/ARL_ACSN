@@ -12,8 +12,8 @@ def event_gen():
   eventid = 1
   for i in range(num):
     time = random.random()*40
-    #pos = [random.random()*area_x,random.random()*area_y]
-    pos = [25,25]
+    pos = [random.random()*area_x,random.random()*area_y]
+    #pos = [25,25]
     # Event.txt
     fe.write("%0.3f %d %f %f\n" %(time,eventid,pos[0],pos[1]))  
     # Log.txt

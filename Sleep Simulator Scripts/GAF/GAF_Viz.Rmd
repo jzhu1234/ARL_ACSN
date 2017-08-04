@@ -6,6 +6,10 @@ output: html_document
 ---
 
 ```{r setup}
+library(manipulate)
+library(ggplot2)
+library(RColorBrewer)
+
 # Set up Graph
 area_x <- 50
 area_y <- 50
@@ -15,7 +19,7 @@ y_int <- seq(0,area_y,r)
 iter_per <- 0.01
 
 # Read in text file
-df <- read.table('~/Documents/python_code/log_GAF.txt')
+df <- read.table('log_GAF.txt')
 colnames(df) <- c('Time','Node','State','PosX','PosY','Energy','Detect','Type')
 #df$Time[df$State == 3] <- df$Time[df$State == 3]+iter_per
 t <- as.list(levels(as.factor(df$Time)))
@@ -51,14 +55,15 @@ df$Type <- as.numeric(df$Type)
 ```
 
 ```{r}
-lifetime <- read.table('~/Documents/python_code/lifetime_GAF.txt')
+lifetime <- read.table('lifetime_GAF.txt')
 colnames(lifetime) <- c('Time','Nodes')
 lifetime$Nodes <- lifetime$Nodes/max(lifetime$Nodes)
 ggplot(lifetime,aes(Time,Nodes)) + geom_line()
 ```
+
 ```{r}
 # Graph how many events were found over time
-event_detect <- read.table('~/Documents/python_code/detect_GAF.txt')
+event_detect <- read.table('detect_GAF.txt')
 colnames(event_detect) <- c('Time','Events')
 #event_detect$Time <- event_detect$Time - iter_per
 events <- df$Time[df$State=='Event']

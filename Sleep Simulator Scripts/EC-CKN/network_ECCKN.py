@@ -43,7 +43,7 @@ class Node(multiprocessing.Process):
     self.neighbors = neighbor_info
     # Give the node a random amount of energy between 1.9 and 2.1 J
     #self.energy = 0.01 + random()*.0001
-    self.energy = .1 + random()*.0001
+    self.energy = .05 + random()*.001
     # Contains list of neighbor nodes, energy, and connections
     self.ninfo = dict()
     self.n2info = dict()
@@ -217,8 +217,8 @@ class Node(multiprocessing.Process):
           print self.name, 'Message Buffer', self.message_buffer
           print self.name, 'Index', self.message_index
           # If node was awake, take out some energy
-          #if self.state == 2 or self.state == 0:
-            #self.energy -= 0.01392*5*self.epoch
+          if self.state == 2 or self.state == 0:
+            self.energy -= 0.001*self.epoch
           # Record energy at the start of the epoch
           self.beg_ene = self.energy
           self.stage = 1
@@ -287,7 +287,7 @@ class Node(multiprocessing.Process):
       else:
         self.stage = 0
       if self.stage == 2 + self.maxhops:
-        sock_msg = str(self.timestamp)+' '+self.name+' '+str(self.state)+' '+str(self.pos[0])+" "+str(self.pos[1])+' '+str(self.energy)+' False'
+        sock_msg = str(self.timestamp)+' '+self.name+' '+str(self.state)+' '+str(self.pos[0])+" "+str(self.pos[1])+' '+str(self.energy)+' False '+self.type
         self.timestamp += 1
     # Close and open sockets to remove any buffered messages
     # Check for any values left in buffer
@@ -352,6 +352,29 @@ class Node(multiprocessing.Process):
 
       # See if any two nodes in Eu are connected directly or indirectly
       keys = Eu.keys()
+      '''
+      # Get a list of all Eu connections
+      connect_Eu = []
+      for i in range(len(keys)):
+        # Create a list of neighbor Eu
+        nbr = []
+        for node_info in self.n2info[keys[i]]:
+          nbr.append(node_info[0])
+        nbr = [m for m in nbr if m in Eu]
+        result = [keys[i]] + nbr
+        # If result is not 0, check if we can combine indices in connect_Eu
+        if len(result) != 1:
+          if len(connect_Eu) == 0:
+            connect_Eu.append(result)
+          else:
+            for 
+            # Check if Eu node is indirectly connected to any other nodes
+            for list_Eu in connect_Eu:
+              if
+        else:
+          # Eu node is not directly connected to anything
+          pass
+      '''
       for i in range(len(keys)):
         # Create a list of neighbors
         nbr = []
@@ -370,7 +393,7 @@ class Node(multiprocessing.Process):
             # If no match is found, return 2
             if len(match_twohop)+len(match_Eu) == 0:
               return 2             
-
+      
       # Check for Condition 2: Any node in Nu has at least k neighbors from Eu
       for node in self.n2info:
         conn = 0

@@ -43,7 +43,7 @@ class Node(multiprocessing.Process):
     self.neighbors = neighbor_info
     # Give the node a random amount of energy between 1.9 and 2.1 J
     #self.energy = 0.01 + random()*.0001
-    self.energy = .05 + random()*.001
+    self.energy = .1 + random()*.0001
     # Contains list of neighbor nodes, energy, and connections
     self.ninfo = dict()
     self.n2info = dict()
