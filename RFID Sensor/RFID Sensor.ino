@@ -1,3 +1,5 @@
+int ledPin = 13;
+
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_PN532.h>
@@ -37,6 +39,7 @@ ISR(TIMER1_OVF_vect)
 {
   TCNT1 = twosec;
   RFID_awake = false;
+  digitalWrite(ledPin, LOW);
   /* set the flag. */
   if(f_timer == 0)
   {
@@ -61,6 +64,8 @@ void enterSleep(void)
 }
 
 void setup() {
+   pinMode(ledPin, OUTPUT);
+   digitalWrite(ledPin, LOW);
   
   //Serial.begin(9600);
   /*
@@ -99,7 +104,8 @@ void RFID_sense(){
      
     success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
     
-    if (success) {  
+    if (success) {
+      digitalWrite(ledPin, HIGH);
       if (uidLength == 4) {
         uint8_t keya[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
         success = nfc.mifareclassic_AuthenticateBlock(uid, uidLength, 4, 0, keya);    
