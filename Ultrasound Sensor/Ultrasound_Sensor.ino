@@ -1,7 +1,10 @@
 int ledPin = 13;
+const byte rxPin = 6;
+const byte txPin = 7;
 
 #include <avr/sleep.h>
 #include <avr/power.h>
+#include <SoftwareSerial.h>
 
 const int trigPin = 9;
 const int echoPin = 10;
@@ -9,6 +12,7 @@ const int echoPin = 10;
 // defines variables
 long duration;
 int distance;
+SoftwareSerial mySerial = SoftwareSerial(rxPin,txPin);
 
 volatile int f_timer=0;
 volatile int threshold = 0;
@@ -53,12 +57,13 @@ void enterSleep(void)
 void setup() {
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
-   
+  pinMode(rxPin, INPUT);
+  pinMode(txPin, OUTPUT);
   pinMode(ledPin, OUTPUT);
   pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
   pinMode(echoPin, INPUT); // Sets the echoPin as an Input
   Serial.begin(9600); //Starts the serial communication
-
+  mySerial.begin(9600);
   /* Normal timer operation.*/
   TCCR1A = 0x00; 
   TCNT1=31250; 
@@ -85,29 +90,29 @@ void setup() {
 void loop() {
   if(f_timer==1){
     f_timer = 0;
-    /*
-    while (Serial.available() >= 3) {
-    byte h = Serial.read();
-    byte m = Serial.read();
-    byte l = Serial.read();
+    
+    while (mySerial.available() >= 3) {
+    byte h = mySerial.read();
+    byte m = mySerial.read();
+    byte l = mySerial.read();
     if (h == 0) {
       TIMSK1 = 0x00;
-      Serial.print("+++");
+      mySerial.print("+++");
       delay(1000);
-      Serial.print("ATID");
-      Serial.print(m, HEX);
-      Serial.print(l, HEX);
-      Serial.print('\r');
+      mySerial.print("ATID");
+      mySerial.print(m, HEX);
+      mySerial.print(l, HEX);
+      mySerial.print('\r');
       delay(1000);
-      Serial.print("ATWR\r");
-      while (Serial.available() >= 3) {
-        Serial.read();
-        Serial.read();
-        Serial.read();
+      mySerial.print("ATWR\r");
+      while (mySerial.available() >= 3) {
+        mySerial.read();
+        mySerial.read();
+        mySerial.read();
       }
     } 
     TIMSK1=0x01;
-    */
+    
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     // Sets the trigPin on HIGH state for 10 microseconds
@@ -120,7 +125,7 @@ void loop() {
     if (duration < threshold){
       digitalWrite(ledPin, HIGH);
       byte msg[] = {5, 6, 1};
-      Serial.write(msg,3);
+      mySerial.write(msg,3);
     }
     enterSleep();
   }  
