@@ -1,9 +1,10 @@
 int ledPin = 13;
-
+const byte rxPin = 6;
+const byte txPin = 7;
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_PN532.h>
-
+#include <SoftwareSerial.h>
 // If using the breakout with SPI, define the pins for SPI communication.
 #define PN532_SCK  (2)
 #define PN532_MOSI (3)
@@ -32,7 +33,7 @@ volatile int threshold = 0;
 const unsigned int twosec = 34286;
 const unsigned int foursec = 3036;
 volatile unsigned int delay_period=0;
-
+SoftwareSerial mySerial = SoftwareSerial(rxPin,txPin);
 bool RFID_awake = false;
 
 ISR(TIMER1_OVF_vect)
@@ -87,7 +88,7 @@ void setup() {
   
   // configure board to read RFID tags
   nfc.SAMConfig();
-  Serial.begin(9600);
+  mySerial.begin(9600);
   
   //Timer of 2 seconds
   TCCR1A = 0x00; 
@@ -119,7 +120,7 @@ void RFID_sense(){
             byte msg[] = {bytehigh, bytemid, bytelow};
             RFID_awake = false;
             //Serial.println("RFID Sense");
-            Serial.write(msg, 3);
+            mySerial.write(msg, 3);
           }
         }
       }
@@ -132,13 +133,30 @@ void loop(void) {
   if(f_timer==1){
     f_timer = 0;
     
-    while (Serial.available() >= 3){
+    while (mySerial.available() >= 3){
       // read the incoming byte:
-      byte Bytehigh = Serial.read();
-      byte Bytemid = Serial.read();
-      byte Bytelow = Serial.read();
+      byte Bytehigh = mySerial.read();
+      byte Bytemid = mySerial.read();
+      byte Bytelow = mySerial.read();
 
-      if (Bytemid >= 5 && Bytehigh != 0){
+      if (Bytehigh == 0) {
+        TIMSK1 = 0x00; 
+        mySerial.print("+++");
+        delay(1000);
+        mySerial.print("ATID");
+        mySerial.print(Bytemid, HEX);
+        mySerial.print(Bytelow, HEX);
+        mySerial.print('\r');
+        delay(1000);
+        mySerial.print("ATWR\r");
+        while (mySerial.available() >= 3) {
+          mySerial.read();
+          mySerial.read();
+          mySerial.read();
+        }
+        TIMSK1 = 0x01;
+      } 
+      else if (Bytemid >= 5 && Bytehigh != 0){
         // Message is from detector node
         //Turn off interrupt temporarily
         TIMSK1=0x00;
