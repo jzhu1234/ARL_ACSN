@@ -33,11 +33,13 @@
 
 int pirPin = 3;    //the digital pin connected to the PIR sensor's output
 int ledPin = 11;
+const byte rxPin = 6;
+const byte txPin = 7;
 #include <avr/sleep.h>
 #include <avr/power.h>
-
+#include <SoftwareSerial.h>
 #define ledPin (11)
-
+SoftwareSerial mySerial = SoftwareSerial(rxPin,txPin);
 volatile int f_timer=0;
 
 /***************************************************
@@ -91,9 +93,11 @@ void enterSleep(void)
 /////////////////////////////
 //SETUP
 void setup(){
-  Serial.begin(9600);
+  mySerial.begin(9600);
   pinMode(pirPin, INPUT);
   pinMode(ledPin, OUTPUT);
+  pinMode(rxPin, INPUT);
+  pinMode(txPin, OUTPUT);
   //digitalWrite(pirPin. LOW);
 
     /*** Configure the timer.***/
@@ -116,30 +120,30 @@ void setup(){
 void loop() {
   if(f_timer == 1){
     f_timer = 0;
-    /*
-    while (Serial.available() >= 3) {
-      byte h = Serial.read();
-      byte m = Serial.read();
-      byte l = Serial.read();
+    
+    while (mySerial.available() >= 3) {
+      byte h = mySerial.read();
+      byte m = mySerial.read();
+      byte l = mySerial.read();
       if (h == 0) {
         TIMSK1 = 0x00;
-        Serial.print("+++");
+        mySerial.print("+++");
         delay(1000);
-        Serial.print("ATID");
-        Serial.print(m, HEX);
-        Serial.print(l, HEX);
-        Serial.print('\r');
+        mySerial.print("ATID");
+        mySerial.print(m, HEX);
+        mySerial.print(l, HEX);
+        mySerial.print('\r');
         delay(1000);
-        Serial.print("ATWR\r");
-        while (Serial.available() >= 3) {
-          Serial.read();
-          Serial.read();
-          Serial.read();
+        mySerial.print("ATWR\r");
+        while (mySerial.available() >= 3) {
+          mySerial.read();
+          mySerial.read();
+          mySerial.read();
         }
       }
     }
     TIMSK1 = 0x01;
-    */
+    
     int proximity = digitalRead(pirPin);
     if(proximity == HIGH){
       digitalWrite(ledPin, HIGH);   //the led visualizes the sensors output pin state
