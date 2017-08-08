@@ -1,7 +1,8 @@
 int ledPinYellow = 13;
 int ledPinRed = 12;
 //int ledPinWhite = 11; 
-
+const byte rxPin = 6;
+const byte txPin = 7;
 const int trigPin = 9;
 const int echoPin = 10;
 // defines variables
@@ -44,12 +45,13 @@ Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
 #include <avr/sleep.h>
 #include <avr/power.h>
+#include <SoftwareSerial.h>
 
 volatile int f_timer=0;
 volatile int threshold = 0;
 const unsigned int twosec = 34286;
 const unsigned int foursec = 3036;
-
+SoftwareSerial mySerial = SoftwareSerial(rxPin,txPin);
 bool magnet_awake = false;
 //bool RFID_awake = false;
 
@@ -89,7 +91,9 @@ void configureSensor(void) {
 }
 
 void setup() {
-  Serial.begin(9600);
+  pinMode(rxPin, INPUT);
+  pinMode(txPin, OUTPUT);
+  mySerial.begin(9600);
     
   #ifndef ESP8266
     while (!Serial); // for Leonardo/Micro/Zero
@@ -159,7 +163,7 @@ void magnet_sense(){
     if (sum > 2){
       digitalWrite(ledPinRed, HIGH);
       byte msg[] = {1, 2, 1};
-      Serial.write(msg,3);
+      mySerial.write(msg,3);
       magnet_awake = false;
     }
   }
@@ -178,7 +182,7 @@ bool ultrasound_sense(){
   if (duration < threshold){
     digitalWrite(ledPinYellow, HIGH);
     byte msg[] = {1, 6, 1};
-    Serial.write(msg,3);
+    mySerial.write(msg,3);
     return true;
   }
   return false;
@@ -221,13 +225,30 @@ void loop() {
     f_timer = 0;
     
     bool sensed = ultrasound_sense();
-    while (Serial.available() >= 3 || sensed){
+    while (mySerial.available() >= 3 || sensed){
       // read the incoming byte:
-      byte Bytehigh = Serial.read();
-      byte Bytemid = Serial.read();
-      byte Bytelow = Serial.read();
+      byte Bytehigh = mySerial.read();
+      byte Bytemid = mySerial.read();
+      byte Bytelow = mySerial.read();
 
-      if (Bytemid >= 5 || sensed){
+      if (Bytehigh == 0) {
+        TIMSK1 = 0x00; 
+        mySerial.print("+++");
+        delay(1000);
+        mySerial.print("ATID");
+        mySerial.print(Bytemid, HEX);
+        mySerial.print(Bytelow, HEX);
+        mySerial.print('\r');
+        delay(1000);
+        mySerial.print("ATWR\r");
+        while (mySerial.available() >= 3) {
+          mySerial.read();
+          mySerial.read();
+          mySerial.read();
+        }
+        TIMSK1 = 0x01;
+      } 
+      else if (Bytemid >= 5 || sensed){
         sensed = false;
         // Message is from detector node
         //Turn off interrupt temporarily
