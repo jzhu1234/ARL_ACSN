@@ -16,13 +16,14 @@ Development environment specifics:
 Arduino 1.6.7
 ******************************************************************************/
 int ledPin = 13;
-
+const byte rxPin = 6;
+const byte txPin = 7;
 #include <avr/sleep.h>
 #include <avr/power.h>
-
+#include <SoftwareSerial.h>
 volatile int f_timer=0;
 const int PIEZO_PIN = A0; // Piezo output
-
+SoftwareSerial mySerial = SoftwareSerial(rxPin,txPin);
 ISR(TIMER1_OVF_vect)
 {
    TCNT1 = 31250;
@@ -64,8 +65,9 @@ void setup()
 {
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
-  
-  Serial.begin(9600);
+  pinMode(rxPin, INPUT);
+  pinMode(txPin, OUTPUT);
+  mySerial.begin(9600);
   /* Normal timer operation.*/
   TCCR1A = 0x00; 
   TCNT1=31250; 
@@ -82,30 +84,30 @@ void loop()
 {
   if(f_timer==1){
     f_timer = 0;
-    /*
+    
     while (Serial.available() >= 3) {
-      byte h = Serial.read();
-      byte m = Serial.read();
-      byte l = Serial.read();
+      byte h = mySerial.read();
+      byte m = mySerial.read();
+      byte l = mySerial.read();
       if (h == 0) {
         TIMSK1 = 0x00;
-        Serial.print("+++");
+        mySerial.print("+++");
         delay(1000);
-        Serial.print("ATID");
-        Serial.print(m, HEX);
-        Serial.print(l, HEX);
-        Serial.print('\r');
+        mySerial.print("ATID");
+        mySerial.print(m, HEX);
+        mySerial.print(l, HEX);
+        mySerial.print('\r');
         delay(1000);
-        Serial.print("ATWR\r");
-        while (Serial.available() >= 3) {
-          Serial.read();
-          Serial.read();
-          Serial.read();
+        mySerial.print("ATWR\r");
+        while (mySerial.available() >= 3) {
+          mySerial.read();
+          mySerial.read();
+          mySerial.read();
         }
       }
     }
     TIMSK1 = 0x01;
-    */
+    
     // Read Piezo ADC value in, and convert it to a voltage
     int piezoADC = analogRead(PIEZO_PIN);
     if (piezoADC != 0){
@@ -114,7 +116,7 @@ void loop()
       byte bytemid = 7;
       byte bytehigh = 3;
       byte msg[] = {bytehigh, bytemid, bytelow}; 
-      Serial.write(msg, 3);
+      mySerial.write(msg, 3);
     }
     enterSleep();
   }
