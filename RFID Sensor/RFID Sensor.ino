@@ -86,6 +86,9 @@ void setup() {
   
   nfc.setPassiveActivationRetries(0xFE);
   
+  pinMode(rxPin, INPUT);
+  pinMode(txPin, OUTPUT);
+   
   // configure board to read RFID tags
   nfc.SAMConfig();
   mySerial.begin(9600);
